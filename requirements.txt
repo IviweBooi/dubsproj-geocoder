@@ -1,0 +1,14 @@
+# Geocoding
+geopy==2.4.1
+
+# Data processing
+pandas==2.3.3
+
+# Retry logic
+backoff==2.2.1
+
+# Environment variables
+python-dotenv==1.0.1
+
+# SharePoint upload
+Office365-REST-Python-Client==2.5.12
