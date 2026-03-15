@@ -49,7 +49,7 @@ def join_multiline(address: str) -> str:
         "12 Main St\nSandton\nJohannesburg" -> "12 Main St, Sandton, Johannesburg"
     """
     # Split on newlines, strip each part, drop empty parts, rejoin with ", "
-    parts = [part.strip() for part in address.splitlines()]
+    parts = [part.strip().rstrip(", ") for part in address.splitlines()]
     parts = [part for part in parts if part]  # remove empty strings
     return ", ".join(parts)
 
@@ -76,11 +76,10 @@ def ensure_country(address: str) -> str:
 
     Example:
         "12 Main St, Sandton, Gauteng, 2196" -> "12 Main St, Sandton, Gauteng, 2196, South Africa"
-        "12 Main St, London, UK"             -> "12 Main St, London, UK"  (unchanged)
+        "12 Main St, London, UK"             -> "12 Main St, London, Uk, South Africa"
     """
 
-    country_hints = ["south africa", "nigeria", "kenya", "zimbabwe", "uk",
-                     "united kingdom", "united states", "usa", "canada", "india"]
+    country_hints = ["south africa"]
     lower = address.lower()
     if not any(hint in lower for hint in country_hints):
         address = address.rstrip(", ") + ", South Africa"
