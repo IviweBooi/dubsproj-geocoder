@@ -48,6 +48,7 @@ def join_multiline(address: str) -> str:
     Example:
         "12 Main St\nSandton\nJohannesburg" -> "12 Main St, Sandton, Johannesburg"
     """
+    address = address.replace(",", "")  # Replace any loose commas with nothing
     # Split on newlines, strip each part, drop empty parts, rejoin with ", "
     parts = [part.strip() for part in address.splitlines()]
     parts = [part for part in parts if part]  # remove empty strings

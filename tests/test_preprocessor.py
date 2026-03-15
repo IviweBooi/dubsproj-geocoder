@@ -1,5 +1,7 @@
 import unittest
-from src.preprocessor import clean_address
+import sys
+sys.path.append('src')
+from preprocessor import clean_address
 
 class TestPreprocessor(unittest.TestCase):
 
