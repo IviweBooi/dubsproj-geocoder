@@ -117,5 +117,5 @@ dmypy.json
 .DS_Store
 
 # Custom for this project
-logs/
+logs/*.log
 reports/
