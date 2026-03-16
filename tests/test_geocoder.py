@@ -108,7 +108,11 @@ class TestGeocoder(unittest.TestCase):
 
         result2 = geocode_address("Cached Address")
         self.assertEqual(result2["status"], "success")
-        self.assertEqual(result1, result2)
+        self.assertEqual(result2["source"], "cache")
+        # Check equality except for the 'source' field which we expect to change
+        res1_no_source = {k: v for k, v in result1.items() if k != 'source'}
+        res2_no_source = {k: v for k, v in result2.items() if k != 'source'}
+        self.assertEqual(res1_no_source, res2_no_source)
         mock_geocode.assert_not_called()
         mock_sleep.assert_not_called()
 

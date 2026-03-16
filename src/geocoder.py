@@ -16,6 +16,7 @@ Author : Iviwe
 
 import time
 import logging
+import os
 import backoff
 from geopy.geocoders import Nominatim
 from geopy.exc import GeocoderTimedOut, GeocoderServiceError
@@ -25,6 +26,18 @@ from preprocessor import clean_address
 # ---------------------------------------------------------------------------
 # Logging setup
 # ---------------------------------------------------------------------------
+LOG_DIR = os.path.join(os.path.dirname(__file__), "..", "logs")
+os.makedirs(LOG_DIR, exist_ok=True)
+LOG_FILE = os.path.join(LOG_DIR, "geocoder.log")
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s | %(levelname)-8s | %(name)s | %(message)s",
+    handlers=[
+        logging.FileHandler(LOG_FILE),
+        logging.StreamHandler()
+    ]
+)
 logger = logging.getLogger(__name__)
 
 
@@ -69,6 +82,9 @@ def geocode_address(address: str) -> dict:
     Main geocoding function. Takes a raw address string, cleans it,
     checks the cache, calls Nominatim if needed, and returns a result dict.
 
+    If the initial specific search fails, it attempts a fallback search
+    by removing the most specific part of the address (e.g., house number).
+
     Args:
         address: Raw address string from the CSV
 
@@ -78,7 +94,8 @@ def geocode_address(address: str) -> dict:
             "longitude"     : float or None,
             "location_type" : str or None,
             "status"        : "success" or "failed",
-            "cleaned_address": str or None
+            "cleaned_address": str or None,
+            "match_level"   : "exact" or "fallback" or None
         }
     """
     # Build the default result dictionary
@@ -87,7 +104,9 @@ def geocode_address(address: str) -> dict:
         "longitude"       : None,
         "location_type"   : None,
         "status"          : "failed",
-        "cleaned_address" : None
+        "cleaned_address" : None,
+        "match_level"     : None,
+        "source"          : "api"
     }
 
     # Clean the address using preprocessor
@@ -101,25 +120,48 @@ def geocode_address(address: str) -> dict:
     # Check cache before hitting the API
     if cleaned in _cache:
         logger.info(f"Cache hit: {cleaned}")
-        return _cache[cleaned]
+        cached_result = _cache[cleaned].copy()
+        cached_result["source"] = "cache"
+        return cached_result
 
     # Call Nominatim (with retry logic via @backoff decorator)
     try:
+        # 1. Try Exact Match
         location = _call_nominatim(cleaned)
-
-        # Handle no result found (valid response but address not found)
-        if location is None:
-            logger.warning(f"No result found for: {cleaned}")
-            _cache[cleaned] = result        # cache the failure too so we don't retry
-            return result
-
-        # Extract what we need from the response
-        result["latitude"]       = location.latitude
-        result["longitude"]      = location.longitude
-        result["location_type"]  = _extract_location_type(location)
-        result["status"]         = "success"
-
-        logger.info(f"Geocoded: {cleaned} -> ({location.latitude}, {location.longitude})")
+        
+        if location:
+            result.update({
+                "latitude": location.latitude,
+                "longitude": location.longitude,
+                "location_type": _extract_location_type(location),
+                "status": "success",
+                "match_level": "exact"
+            })
+            logger.info(f"Geocoded (Exact): {cleaned} -> ({location.latitude}, {location.longitude})")
+        else:
+            # 2. Try Fallback Match (remove first part - usually house number)
+            parts = [p.strip() for p in cleaned.split(",")]
+            if len(parts) > 2:  # only fallback if we have more than just 'Suburb, South Africa'
+                fallback_address = ", ".join(parts[1:])
+                logger.info(f"Exact match failed. Trying fallback: {fallback_address}")
+                
+                # Enforce rate limit before fallback call
+                time.sleep(1)
+                location = _call_nominatim(fallback_address)
+                
+                if location:
+                    result.update({
+                        "latitude": location.latitude,
+                        "longitude": location.longitude,
+                        "location_type": _extract_location_type(location),
+                        "status": "success",
+                        "match_level": "fallback"
+                    })
+                    logger.info(f"Geocoded (Fallback): {fallback_address} -> ({location.latitude}, {location.longitude})")
+                else:
+                    logger.warning(f"No result found even with fallback for: {cleaned}")
+            else:
+                logger.warning(f"No result found for: {cleaned}")
 
     except Exception as e:
         # Catch anything backoff couldn't handle after max retries
