@@ -9,7 +9,8 @@ Automated geocoding pipeline for DUBSPROJ-202603001. This project processes addr
 - [x] Address Preprocessing Module
 - [x] Geocoding Module with Fallback Strategy
 - [x] Unit and Integration Testing
-- [ ] Batch Processing Logic (Pending)
+- [x] Batch Processing Logic
+- [ ] Google Drive Integration (In Progress)
 - [ ] SharePoint Integration (Pending)
 
 ## Features
@@ -18,6 +19,7 @@ Automated geocoding pipeline for DUBSPROJ-202603001. This project processes addr
 - **Fallback Strategy**: Automatically retries geocoding at a less specific level (e.g., street level) if the exact address match fails.
 - **Smart Caching**: Stores results locally to avoid redundant API calls and respect rate limits.
 - **Production Logging**: Detailed logging to both console and `logs/geocoder.log`.
+- **Google Drive Integration**: Automated download of input CSVs and upload of results to a specified Google Drive folder.
 - **Rate Limit Compliance**: Enforces Nominatim's 1-request-per-second policy.
 - **Exponential Backoff**: Automatic retries for transient network or API errors.
 
@@ -56,15 +58,28 @@ Verify real-world connectivity with the live Nominatim API:
 python tests/integration_test_real_api.py
 ```
 
-## Batch Processing
+## Usage
 
-The batch processor handles CSV files with the following production structure:
-- **Columns**: `DID Number`, `Country`, `Province`, `Street Address`, `Suburb/Area`.
-- **Combined Geocoding**: Combines street, suburb, province, and country into a single query for maximum precision.
+To run the full pipeline (Download -> Process -> Upload):
+```powershell
+python src/main.py
+```
 
-To run the batch processor on your input files:
+This will automatically check the configured Google Drive folder for new CSV files, geocode them locally, and upload the results back to the same folder.
+
+Alternatively, you can run the batch processor on local files only:
 ```powershell
 python src/batch_processor.py
 ```
 
-Results will be saved to `data/geocoded_addresses.csv` with added geocoding metadata.
+## Google Drive Integration
+
+The project includes an automated Google Drive integration for downloading and uploading CSV files. To use this feature:
+
+1.  **Set Up Service Account**: Create a Google Cloud project, enable the Drive API, and generate a Service Account JSON key.
+2.  **Configure `.env`**: Copy `.env.example` to `.env` and provide the following:
+    - `GOOGLE_DRIVE_SERVICE_ACCOUNT_FILE`: Path to your service account JSON file.
+    - `GOOGLE_DRIVE_FOLDER_ID`: The ID of the folder you want to use (e.g., `185lQ5PVa3_8E1LWV17VkUSEEX3ZFXqDJ`).
+3.  **Permissions**: Share the target Google Drive folder with the service account email.
+
+The `google_drive_service.py` provides functions for listing, downloading, and uploading CSV files.
