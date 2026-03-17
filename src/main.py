@@ -11,6 +11,7 @@ This is the main entry point for the pipeline. It:
 
 import os
 import logging
+from datetime import datetime
 from google_drive_service import list_files_in_folder, download_file, upload_file
 from batch_processor import process_csv
 from dotenv import load_dotenv
@@ -18,8 +19,40 @@ from dotenv import load_dotenv
 # Load environment variables
 load_dotenv()
 
-# Configure logging (uses the settings from geocoder)
+# Configure logging
 logger = logging.getLogger(__name__)
+
+def generate_reports(filename: str, summary: dict):
+    """
+    Generates summary and error reports for a processed file.
+    (REQ005, REQ006)
+    """
+    reports_dir = os.path.join(os.path.dirname(__file__), "..", "reports")
+    os.makedirs(reports_dir, exist_ok=True)
+    
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    report_base = f"{os.path.splitext(filename)[0]}_{timestamp}"
+    
+    # 1. Summary Report (Text)
+    summary_path = os.path.join(reports_dir, f"summary_{report_base}.txt")
+    with open(summary_path, "w") as f:
+        f.write(f"Geocoding Execution Summary\n")
+        f.write(f"---------------------------\n")
+        f.write(f"File: {filename}\n")
+        f.write(f"Timestamp: {timestamp}\n\n")
+        f.write(f"Total Records:     {summary['total']}\n")
+        f.write(f"Successful:        {summary['successful']}\n")
+        f.write(f"Failed:            {summary['failed']}\n\n")
+        f.write(f"Exact Matches:     {summary['exact_matches']}\n")
+        f.write(f"Fallback Matches:  {summary['fallback_matches']}\n")
+    
+    logger.info(f"Summary report generated: {summary_path}")
+
+    # 2. Error Report (CSV) - REQ005
+    if summary['failed'] > 0:
+        error_path = os.path.join(reports_dir, f"errors_{report_base}.csv")
+        summary['failed_records'].to_csv(error_path, index=False)
+        logger.warning(f"Error report generated for {summary['failed']} failed records: {error_path}")
 
 def run_pipeline():
     """
@@ -60,12 +93,18 @@ def run_pipeline():
         # Download from Google Drive
         if download_file(file_id, local_input):
             # Process locally
-            process_csv(local_input, local_output)
+            summary = process_csv(local_input, local_output)
             
-            # Upload results back to Google Drive
-            upload_file(local_output, folder_id)
-            
-            logger.info(f"--- Completed: {filename} ---")
+            if summary:
+                # Generate reports (REQ005, REQ006)
+                generate_reports(filename, summary)
+                
+                # Upload results back to Google Drive
+                upload_file(local_output, folder_id)
+                
+                logger.info(f"--- Completed: {filename} ---")
+            else:
+                logger.error(f"Processing failed for {filename}")
         else:
             logger.error(f"Failed to download {filename}")
 

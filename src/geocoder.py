@@ -18,6 +18,7 @@ import time
 import logging
 import os
 import backoff
+from logging.handlers import RotatingFileHandler
 from geopy.geocoders import Nominatim
 from geopy.exc import GeocoderTimedOut, GeocoderServiceError
 from preprocessor import clean_address
@@ -30,15 +31,25 @@ LOG_DIR = os.path.join(os.path.dirname(__file__), "..", "logs")
 os.makedirs(LOG_DIR, exist_ok=True)
 LOG_FILE = os.path.join(LOG_DIR, "geocoder.log")
 
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s | %(levelname)-8s | %(name)s | %(message)s",
-    handlers=[
-        logging.FileHandler(LOG_FILE),
-        logging.StreamHandler()
-    ]
-)
+# Create logger
 logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
+
+# Only add handlers if they don't already exist to avoid duplicates
+if not logger.handlers:
+    # Create formatters
+    formatter = logging.Formatter("%(asctime)s | %(levelname)-8s | %(name)s | %(message)s")
+
+    # Create and add rotating file handler (REQ006: Maintain log history)
+    # 5MB per file, keeping up to 30 backup files
+    file_handler = RotatingFileHandler(LOG_FILE, maxBytes=5*1024*1024, backupCount=30)
+    file_handler.setFormatter(formatter)
+    logger.addHandler(file_handler)
+
+    # Create and add stream handler (console)
+    stream_handler = logging.StreamHandler()
+    stream_handler.setFormatter(formatter)
+    logger.addHandler(stream_handler)
 
 
 # ---------------------------------------------------------------------------

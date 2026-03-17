@@ -31,7 +31,7 @@ def process_csv(input_path: str, output_path: str, address_cols: list = None):
 
     if not os.path.exists(input_path):
         logger.error(f"Input file not found: {input_path}")
-        return
+        return None
 
     logger.info(f"Starting batch process: {input_path}")
     
@@ -43,7 +43,7 @@ def process_csv(input_path: str, output_path: str, address_cols: list = None):
         missing_cols = [col for col in address_cols if col not in df.columns]
         if missing_cols:
             logger.error(f"Missing columns in CSV: {missing_cols}")
-            return
+            return None
 
         # Prepare results
         results = []
@@ -54,7 +54,6 @@ def process_csv(input_path: str, output_path: str, address_cols: list = None):
             logger.info(f"Processing row {i+1}/{total_rows}")
             
             # Combine specified columns into a single comma-separated address string
-            # Handle potential NaN values by converting to string and filtering empty ones
             address_parts = [str(row[col]).strip() for col in address_cols if pd.notna(row[col])]
             combined_address = ", ".join(address_parts)
             
@@ -73,12 +72,21 @@ def process_csv(input_path: str, output_path: str, address_cols: list = None):
         
         logger.info(f"Batch process complete. Results saved to: {output_path}")
         
-        # Print summary
-        stats = get_cache_stats()
-        logger.info(f"Summary: {stats['successful']} successful, {stats['failed']} failed.")
+        # Calculate summary for the report
+        summary = {
+            "total": total_rows,
+            "successful": sum(1 for r in results if r["status"] == "success"),
+            "failed": sum(1 for r in results if r["status"] == "failed"),
+            "exact_matches": sum(1 for r in results if r.get("match_level") == "exact"),
+            "fallback_matches": sum(1 for r in results if r.get("match_level") == "fallback"),
+            "failed_records": df[df['Latitude'].isna()].copy()
+        }
+        
+        return summary
 
     except Exception as e:
         logger.error(f"Error during batch processing: {str(e)}")
+        return None
 
 if __name__ == "__main__":
     print("Batch processor module loaded. Use process_csv() to process files.")
