@@ -108,16 +108,4 @@ def upload_file(local_path: str, folder_id: str, filename: str = None):
         return None
 
 if __name__ == "__main__":
-    # Basic connectivity test
-    folder_id = os.getenv("GOOGLE_DRIVE_FOLDER_ID")
-    if folder_id:
-        print(f"Testing connection to folder: {folder_id}")
-        files = list_files_in_folder(folder_id)
-        if files:
-            print("Files found:")
-            for f in files:
-                print(f"- {f['name']} ({f['id']})")
-        else:
-            print("No CSV files found or connection failed.")
-    else:
-        print("GOOGLE_DRIVE_FOLDER_ID not set in .env")
+    logger.info("Google Drive Service module loaded.")
