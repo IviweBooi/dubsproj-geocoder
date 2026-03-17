@@ -56,10 +56,15 @@ Verify real-world connectivity with the live Nominatim API:
 python tests/integration_test_real_api.py
 ```
 
-## Directory Structure
+## Batch Processing
 
-- `src/`: Core logic ([preprocessor.py](file:///c:/Users/USER/OneDrive%20-%20University%20of%20Cape%20Town/Documents/Dubs%20Projects/dubsproj-geocoder/src/preprocessor.py), [geocoder.py](file:///c:/Users/USER/OneDrive%20-%20University%20of%20Cape%20Town/Documents/Dubs%20Projects/dubsproj-geocoder/src/geocoder.py))
-- `tests/`: Unit and integration tests
-- `logs/`: Application logs (`geocoder.log`)
-- `data/`: Input/Output CSV files (reserved for batch processing)
-- `reports/`: Execution summaries
+The batch processor handles CSV files with the following production structure:
+- **Columns**: `DID Number`, `Country`, `Province`, `Street Address`, `Suburb/Area`.
+- **Combined Geocoding**: Combines street, suburb, province, and country into a single query for maximum precision.
+
+To run the batch processor on your input files:
+```powershell
+python src/batch_processor.py
+```
+
+Results will be saved to `data/geocoded_addresses.csv` with added geocoding metadata.

@@ -119,3 +119,4 @@ dmypy.json
 # Custom for this project
 logs/*.log
 reports/
+data/*.csv
