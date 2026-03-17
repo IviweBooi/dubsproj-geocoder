@@ -1,29 +1,27 @@
 # Dubsproj-Geocoder
 
-Automated geocoding pipeline for DUBSPROJ-202603001. This project processes address data to generate geographic coordinates using the Nominatim (OpenStreetMap) API.
+Automated geocoding pipeline for DUBSPROJ-202603001. This project processes South African address data to generate geographic coordinates using the Nominatim (OpenStreetMap) API and synchronizes results with Google Drive.
 
 ## Current Project Status
 
-- [x] Virtual Environment Setup (.venv)
-- [x] Dependency Management (requirements.txt)
-- [x] Address Preprocessing Module
-- [x] Geocoding Module with Fallback Strategy
-- [x] Unit and Integration Testing
-- [x] Batch Processing Logic
-- [x] Google Drive Integration
-- [x] Execution Summary and Error Reporting (REQ005, REQ006)
-- [x] 30-Day Log History (REQ006)
+- [x] **Virtual Environment Setup** (.venv)
+- [x] **Dependency Management** (requirements.txt)
+- [x] **Address Preprocessing Module** (Standardization & Cleaning)
+- [x] **Geocoding Module** (with Fallback Strategy)
+- [x] **Unit & Integration Testing** (27+ tests passing)
+- [x] **Batch Processing Logic** (CSV multi-column handling)
+- [x] **Google Drive Integration** (Automated Upload/Download)
+- [x] **Execution Summary & Error Reporting** (REQ005, REQ006)
+- [x] **30-Day Log History** (REQ006: Rotating Logs)
 
 ## Features
 
-- **Robust Preprocessing**: Cleans and standardizes South African addresses (province expansion, whitespace normalization, country enforcement).
-- **Fallback Strategy**: Automatically retries geocoding at a less specific level (e.g., street level) if the exact address match fails.
-- **Smart Caching**: Stores results locally to avoid redundant API calls and respect rate limits.
-- **Production Logging**: Detailed logging to both console and `logs/geocoder.log` with a 30-day rotating history.
-- **Automated Reporting**: Generates execution summaries and error reports for manual review after every run.
-- **Google Drive Integration**: Automated download of input CSVs and upload of results to a specified Google Drive folder.
-- **Rate Limit Compliance**: Enforces Nominatim's 1-request-per-second policy.
-- **Exponential Backoff**: Automatic retries for transient network or API errors.
+- **Robust Preprocessing**: Standardizes South African addresses by expanding provinces (e.g., GP -> Gauteng), normalizing whitespace, and enforcing title casing.
+- **Fallback Strategy**: If an exact address match fails, the system automatically retries at the street/suburb level to ensure data coverage for the Data Team.
+- **Automated Pipeline**: End-to-end flow that downloads new CSVs from Google Drive, processes them locally, and uploads results back to the cloud.
+- **Production-Grade Logging**: 30-day rotating logs stored in `logs/geocoder.log` for auditing and troubleshooting.
+- **Smart Caching**: Local memory cache prevents redundant API calls, speeding up processing and respecting rate limits.
+- **Detailed Reporting**: Generates a text summary and a CSV error report (listing failed addresses) after every execution.
 
 ## Installation
 
@@ -33,64 +31,48 @@ Automated geocoding pipeline for DUBSPROJ-202603001. This project processes addr
    cd dubsproj-geocoder
    ```
 
-2. **Create and Activate Virtual Environment**:
+2. **Setup Environment**:
    ```powershell
    python -m venv .venv
    .\.venv\Scripts\Activate.ps1
-   ```
-
-3. **Install Dependencies**:
-   ```powershell
    pip install -r requirements.txt
    ```
 
+3. **Configure Credentials**:
+   - Create a `.env` file from `.env.example`.
+   - Place your Google Service Account JSON key in the `credentials/` folder.
+
+## Usage
+
+### Run Full Pipeline
+To scan Google Drive, process files, and upload results:
+```powershell
+python src/main.py
+```
+
+### Run Local Batch Only
+To process a CSV file already in your `data/` folder:
+```powershell
+python src/batch_processor.py
+```
+
 ## Testing
 
-The project includes comprehensive tests to ensure reliability:
-
-### All Tests
-Run all unit tests across all modules:
+### Unit Tests (All Modules)
 ```powershell
 pytest tests/test_preprocessor.py tests/test_geocoder.py tests/test_batch_processor.py tests/test_google_drive_service.py
 ```
 
-### Integration Tests
-Verify real-world connectivity with the live Nominatim API:
+### Live Integration Test
 ```powershell
 python tests/integration_test_real_api.py
 ```
 
 ## Directory Structure
 
-- `src/`: Core logic ([preprocessor.py](file:///c:/Users/USER/OneDrive%20-%20University%20of%20Cape%20Town/Documents/Dubs%20Projects/dubsproj-geocoder/src/preprocessor.py), [geocoder.py](file:///c:/Users/USER/OneDrive%20-%20University%20of%20Cape%20Town/Documents/Dubs%20Projects/dubsproj-geocoder/src/geocoder.py), [batch_processor.py](file:///c:/Users/USER/OneDrive%20-%20University%20of%20Cape%20Town/Documents/Dubs%20Projects/dubsproj-geocoder/src/batch_processor.py), [google_drive_service.py](file:///c:/Users/USER/OneDrive%20-%20University%20of%20Cape%20Town/Documents/Dubs%20Projects/dubsproj-geocoder/src/google_drive_service.py), [main.py](file:///c:/Users/USER/OneDrive%20-%20University%20of%20Cape%20Town/Documents/Dubs%20Projects/dubsproj-geocoder/src/main.py))
-- `tests/`: Unit and integration tests
-- `logs/`: Application logs with 30-day rotation (`geocoder.log`)
-- `reports/`: Automated execution summaries and error reports
-- `data/`: Local storage for input/output CSV files
-- `credentials/`: Secure storage for Service Account keys (Git ignored)
-
-## Usage
-
-To run the full pipeline (Download -> Process -> Upload):
-```powershell
-python src/main.py
-```
-
-This will automatically check the configured Google Drive folder for new CSV files, geocode them locally, and upload the results back to the same folder.
-
-Alternatively, you can run the batch processor on local files only:
-```powershell
-python src/batch_processor.py
-```
-
-## Google Drive Integration
-
-The project includes an automated Google Drive integration for downloading and uploading CSV files. To use this feature:
-
-1.  **Set Up Service Account**: Create a Google Cloud project, enable the Drive API, and generate a Service Account JSON key.
-2.  **Configure `.env`**: Copy `.env.example` to `.env` and provide the following:
-    - `GOOGLE_DRIVE_SERVICE_ACCOUNT_FILE`: Path to your service account JSON file.
-    - `GOOGLE_DRIVE_FOLDER_ID`: The ID of the folder you want to use (e.g., `185lQ5PVa3_8E1LWV17VkUSEEX3ZFXqDJ`).
-3.  **Permissions**: Share the target Google Drive folder with the service account email.
-
-The `google_drive_service.py` provides functions for listing, downloading, and uploading CSV files.
+- `src/`: Core source code ([main.py](file:///c:/Users/USER/OneDrive%20-%20University%20of%20Cape%20Town/Documents/Dubs%20Projects/dubsproj-geocoder/src/main.py), [geocoder.py](file:///c:/Users/USER/OneDrive%20-%20University%20of%20Cape%20Town/Documents/Dubs%20Projects/dubsproj-geocoder/src/geocoder.py), etc.)
+- `tests/`: Comprehensive test suite.
+- `logs/`: Rotating log files (30-day history).
+- `reports/`: Execution summaries and error reports.
+- `data/`: Local storage for processing files (Git ignored).
+- `credentials/`: Secure folder for API keys (Git ignored).
