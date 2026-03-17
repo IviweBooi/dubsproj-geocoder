@@ -10,15 +10,17 @@ Automated geocoding pipeline for DUBSPROJ-202603001. This project processes addr
 - [x] Geocoding Module with Fallback Strategy
 - [x] Unit and Integration Testing
 - [x] Batch Processing Logic
-- [ ] Google Drive Integration (In Progress)
-- [ ] SharePoint Integration (Pending)
+- [x] Google Drive Integration
+- [x] Execution Summary and Error Reporting (REQ005, REQ006)
+- [x] 30-Day Log History (REQ006)
 
 ## Features
 
 - **Robust Preprocessing**: Cleans and standardizes South African addresses (province expansion, whitespace normalization, country enforcement).
 - **Fallback Strategy**: Automatically retries geocoding at a less specific level (e.g., street level) if the exact address match fails.
 - **Smart Caching**: Stores results locally to avoid redundant API calls and respect rate limits.
-- **Production Logging**: Detailed logging to both console and `logs/geocoder.log`.
+- **Production Logging**: Detailed logging to both console and `logs/geocoder.log` with a 30-day rotating history.
+- **Automated Reporting**: Generates execution summaries and error reports for manual review after every run.
 - **Google Drive Integration**: Automated download of input CSVs and upload of results to a specified Google Drive folder.
 - **Rate Limit Compliance**: Enforces Nominatim's 1-request-per-second policy.
 - **Exponential Backoff**: Automatic retries for transient network or API errors.
@@ -46,10 +48,10 @@ Automated geocoding pipeline for DUBSPROJ-202603001. This project processes addr
 
 The project includes comprehensive tests to ensure reliability:
 
-### Unit Tests
-Run unit tests for preprocessing and geocoding logic:
+### All Tests
+Run all unit tests across all modules:
 ```powershell
-pytest tests/test_preprocessor.py tests/test_geocoder.py
+pytest tests/test_preprocessor.py tests/test_geocoder.py tests/test_batch_processor.py tests/test_google_drive_service.py
 ```
 
 ### Integration Tests
@@ -57,6 +59,15 @@ Verify real-world connectivity with the live Nominatim API:
 ```powershell
 python tests/integration_test_real_api.py
 ```
+
+## Directory Structure
+
+- `src/`: Core logic ([preprocessor.py](file:///c:/Users/USER/OneDrive%20-%20University%20of%20Cape%20Town/Documents/Dubs%20Projects/dubsproj-geocoder/src/preprocessor.py), [geocoder.py](file:///c:/Users/USER/OneDrive%20-%20University%20of%20Cape%20Town/Documents/Dubs%20Projects/dubsproj-geocoder/src/geocoder.py), [batch_processor.py](file:///c:/Users/USER/OneDrive%20-%20University%20of%20Cape%20Town/Documents/Dubs%20Projects/dubsproj-geocoder/src/batch_processor.py), [google_drive_service.py](file:///c:/Users/USER/OneDrive%20-%20University%20of%20Cape%20Town/Documents/Dubs%20Projects/dubsproj-geocoder/src/google_drive_service.py), [main.py](file:///c:/Users/USER/OneDrive%20-%20University%20of%20Cape%20Town/Documents/Dubs%20Projects/dubsproj-geocoder/src/main.py))
+- `tests/`: Unit and integration tests
+- `logs/`: Application logs with 30-day rotation (`geocoder.log`)
+- `reports/`: Automated execution summaries and error reports
+- `data/`: Local storage for input/output CSV files
+- `credentials/`: Secure storage for Service Account keys (Git ignored)
 
 ## Usage
 
