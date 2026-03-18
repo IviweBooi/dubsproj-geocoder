@@ -49,10 +49,18 @@ def list_files_in_folder(folder_id: str):
         return []
 
     try:
-        query = f"'{folder_id}' in parents and mimeType = 'text/csv' and trashed = false"
+        query = f"'{folder_id}' in parents and trashed = false"
+        logger.info(f"Running query: {query}")
         results = service.files().list(
-            q=query, fields="files(id, name)").execute()
-        return results.get('files', [])
+            q=query, fields="files(id, name, mimeType)").execute()
+        files = results.get('files', [])
+        logger.info(f"Found {len(files)} files in folder.")
+        for f in files:
+            logger.info(f"- {f['name']} ({f['mimeType']})")
+        
+        # Filter for CSVs locally to be safe
+        csv_files = [f for f in files if f['name'].lower().endswith('.csv')]
+        return csv_files
     except Exception as e:
         logger.error(f"Failed to list files in folder {folder_id}: {str(e)}")
         return []
@@ -99,7 +107,8 @@ def upload_file(local_path: str, folder_id: str, filename: str = None):
         media = MediaFileUpload(local_path, mimetype='text/csv')
         file = service.files().create(body=file_metadata,
                                     media_body=media,
-                                    fields='id').execute()
+                                    fields='id',
+                                    supportsAllDrives=True).execute()
         
         logger.info(f"Successfully uploaded {filename} to folder {folder_id}. File ID: {file.get('id')}")
         return file.get('id')
