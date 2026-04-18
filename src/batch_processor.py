@@ -24,10 +24,10 @@ def process_csv(input_path: str, output_path: str, address_cols: list = None):
         input_path: Path to the input CSV file
         output_path: Path where the processed CSV will be saved
         address_cols: List of column names to combine into a single address string.
-                      Defaults to ["Street Address", "Suburb/Area", "Province", "Country"]
+                      Defaults to ["Street Address", "Suburb/Area", "Province/State", "Country"]
     """
     if address_cols is None:
-        address_cols = ["Street Address", "Suburb/Area", "Province", "Country"]
+        address_cols = ["Street Address", "Suburb/Area", "Province/State", "Country"]
 
     if not os.path.exists(input_path):
         logger.error(f"Input file not found: {input_path}")
@@ -38,6 +38,9 @@ def process_csv(input_path: str, output_path: str, address_cols: list = None):
     try:
         # Load the CSV
         df = pd.read_csv(input_path)
+        
+        # Clean column names (strip trailing/leading whitespace)
+        df.columns = df.columns.str.strip()
         
         # Verify columns exist
         missing_cols = [col for col in address_cols if col not in df.columns]

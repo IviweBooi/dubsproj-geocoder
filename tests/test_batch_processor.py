@@ -43,7 +43,7 @@ class TestBatchProcessor(unittest.TestCase):
         input_df = pd.DataFrame({
             "DID Number": ["TEST001"],
             "Country": ["South Africa"],
-            "Province": ["Western Cape"],
+            "Province/State": ["Western Cape"],
             "Street Address": ["15 Long Street"],
             "Suburb/Area": ["Cape Town"]
         })
@@ -78,6 +78,33 @@ class TestBatchProcessor(unittest.TestCase):
         with self.assertLogs('batch_processor', level='ERROR') as cm:
             process_csv(self.input_csv, self.output_csv)
             self.assertTrue(any("Missing columns in CSV" in msg for msg in cm.output))
+
+    @patch('batch_processor.geocode_address')
+    def test_process_csv_header_whitespace(self, mock_geocode):
+        # Mock geocoder response
+        mock_geocode.return_value = {
+            "latitude": -33.9567,
+            "longitude": 18.4675,
+            "location_type": "AMENITY",
+            "status": "success",
+            "cleaned_address": "Mocked Address",
+            "match_level": "exact",
+            "source": "api"
+        }
+
+        # Create input CSV with extra spaces in headers
+        csv_content = "DID Number   ,Country     ,Province/State,Street Address                            ,Suburb/Area          \nTEST001,South Africa,Western Cape,15 Long Street,Cape Town"
+        with open(self.input_csv, "w") as f:
+            f.write(csv_content)
+
+        # Run processor
+        process_csv(self.input_csv, self.output_csv)
+
+        # Verify output file exists (meaning columns were found despite spaces)
+        self.assertTrue(os.path.exists(self.output_csv))
+        output_df = pd.read_csv(self.output_csv)
+        self.assertIn("Latitude", output_df.columns)
+        self.assertEqual(output_df.iloc[0]["Latitude"], -33.9567)
 
 if __name__ == "__main__":
     unittest.main()
