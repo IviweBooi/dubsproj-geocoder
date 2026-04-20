@@ -93,8 +93,9 @@ def geocode_address(address: str) -> dict:
     Main geocoding function. Takes a raw address string, cleans it,
     checks the cache, calls Nominatim if needed, and returns a result dict.
 
-    If the initial specific search fails, it attempts a fallback search
-    by removing the most specific part of the address (e.g., house number).
+    If the initial specific search fails, it attempts a recursive fallback
+    by removing parts from the beginning of the address until a match
+    is found or only the province and country remain.
 
     Args:
         address: Raw address string from the CSV
@@ -137,46 +138,42 @@ def geocode_address(address: str) -> dict:
 
     # Call Nominatim (with retry logic via @backoff decorator)
     try:
-        # 1. Try Exact Match
-        location = _call_nominatim(cleaned)
+        parts = [p.strip() for p in cleaned.split(",")]
         
-        if location:
-            result.update({
-                "latitude": location.latitude,
-                "longitude": location.longitude,
-                "location_type": _extract_location_type(location),
-                "status": "success",
-                "match_level": "exact"
-            })
-            logger.info(f"Geocoded (Exact): {cleaned} -> ({location.latitude}, {location.longitude})")
-        else:
-            # 2. Try Fallback Match (remove first part - usually house number)
-            parts = [p.strip() for p in cleaned.split(",")]
-            if len(parts) > 2:  # only fallback if we have more than just 'Suburb, South Africa'
-                fallback_address = ", ".join(parts[1:])
-                logger.info(f"Exact match failed. Trying fallback: {fallback_address}")
-                
-                # Enforce rate limit before fallback call
-                time.sleep(1)
-                location = _call_nominatim(fallback_address)
-                
-                if location:
-                    result.update({
-                        "latitude": location.latitude,
-                        "longitude": location.longitude,
-                        "location_type": _extract_location_type(location),
-                        "status": "success",
-                        "match_level": "fallback"
-                    })
-                    logger.info(f"Geocoded (Fallback): {fallback_address} -> ({location.latitude}, {location.longitude})")
-                else:
-                    logger.warning(f"No result found even with fallback for: {cleaned}")
+        # Recursive Fallback Logic
+        # We keep stripping the first part until we find a match
+        # or we are left with only 'Province, Country' (len <= 2)
+        while len(parts) >= 3:
+            current_try = ", ".join(parts)
+            is_exact = (len(parts) == len(cleaned.split(",")))
+            
+            logger.info(f"Trying geocode ({'Exact' if is_exact else 'Fallback'}): {current_try}")
+            location = _call_nominatim(current_try)
+            
+            if location:
+                result.update({
+                    "latitude": location.latitude,
+                    "longitude": location.longitude,
+                    "location_type": _extract_location_type(location),
+                    "status": "success",
+                    "match_level": "exact" if is_exact else "fallback"
+                })
+                logger.info(f"Success ({result['match_level']}): {current_try} -> ({location.latitude}, {location.longitude})")
+                break
             else:
-                logger.warning(f"No result found for: {cleaned}")
+                logger.info(f"No match for: {current_try}")
+                parts.pop(0)  # Strip the most specific part
+                
+                # Enforce rate limit before next fallback attempt
+                if len(parts) >= 3:
+                    time.sleep(1)
+
+        if result["status"] == "failed":
+            logger.warning(f"Failed to geocode even with recursive fallback: {cleaned}")
 
     except Exception as e:
         # Catch anything backoff couldn't handle after max retries
-        logger.error(f"Failed to geocode: {cleaned} | Error: {str(e)}")
+        logger.error(f"Error during geocoding process: {cleaned} | Error: {str(e)}")
 
     # Store in cache regardless of success or failure
     _cache[cleaned] = result

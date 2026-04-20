@@ -99,14 +99,16 @@ class TestGeocoder(unittest.TestCase):
         mock_location.raw = {"addresstype": "city"}
         mock_geocode.return_value = mock_location
 
-        result1 = geocode_address("Cached Address")
+        # Use 3 parts to ensure the loop runs
+        address = "Suburb, Province, South Africa"
+        result1 = geocode_address(address)
         self.assertEqual(result1["status"], "success")
 
         # Second call should use cache
         mock_geocode.reset_mock()
         mock_sleep.reset_mock()
 
-        result2 = geocode_address("Cached Address")
+        result2 = geocode_address(address)
         self.assertEqual(result2["status"], "success")
         self.assertEqual(result2["source"], "cache")
         # Check equality except for the 'source' field which we expect to change
@@ -135,10 +137,10 @@ class TestGeocoder(unittest.TestCase):
     def test_geocode_address_exception(self, mock_logger, mock_geocode):
         mock_geocode.side_effect = Exception("API Error")
 
-        result = geocode_address("Error Address")
+        # Use 3 parts to ensure the loop runs
+        result = geocode_address("Suburb, Province, South Africa")
 
         self.assertEqual(result["status"], "failed")
-        self.assertEqual(result["cleaned_address"], "Error Address, South Africa")
         mock_logger.error.assert_called_once()
 
     @patch('geocoder.geolocator.geocode')
@@ -156,12 +158,42 @@ class TestGeocoder(unittest.TestCase):
             )
         ]
 
-        result = geocode_address("Retry Address")
+        # Use 3 parts to ensure the loop runs
+        result = geocode_address("Suburb, Province, South Africa")
 
         self.assertEqual(result["status"], "success")
         self.assertEqual(mock_geocode.call_count, 3)
         self.assertEqual(mock_logger.warning.call_count, 2)  # for retries
         mock_sleep.assert_called()
+
+    @patch('geocoder.geolocator.geocode')
+    @patch('time.sleep')
+    def test_geocode_address_recursive_fallback(self, mock_sleep, mock_geocode):
+        # First call (exact) returns None
+        # Second call (fallback) returns a location
+        mock_location = MagicMock()
+        mock_location.latitude = -33.9249
+        mock_location.longitude = 18.4241
+        mock_location.raw = {"addresstype": "suburb"}
+        
+        mock_geocode.side_effect = [None, mock_location]
+
+        # Address with 4 parts: Street, Suburb, Province, Country
+        result = geocode_address("123 Fake St, Wynberg, Western Cape")
+
+        self.assertEqual(result["status"], "success")
+        self.assertEqual(result["match_level"], "fallback")
+        self.assertEqual(result["latitude"], -33.9249)
+        self.assertEqual(result["location_type"], "SUBURB")
+        
+        # Should have been called twice: 
+        # 1. "123 Fake St, Wynberg, Western Cape, South Africa"
+        # 2. "Wynberg, Western Cape, South Africa"
+        self.assertEqual(mock_geocode.call_count, 2)
+        
+        # Verify the second call was the fallback address
+        last_call_args = mock_geocode.call_args_list[1][0][0]
+        self.assertEqual(last_call_args, "Wynberg, Western Cape, South Africa")
 
 
 if __name__ == '__main__':

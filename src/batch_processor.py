@@ -82,7 +82,7 @@ def process_csv(input_path: str, output_path: str, address_cols: list = None):
             "failed": sum(1 for r in results if r["status"] == "failed"),
             "exact_matches": sum(1 for r in results if r.get("match_level") == "exact"),
             "fallback_matches": sum(1 for r in results if r.get("match_level") == "fallback"),
-            "failed_records": df[df['Latitude'].isna()].copy()
+            "failed_records": df[df['Latitude'].isna() | (df['Latitude'] == "")].copy()
         }
         
         return summary
